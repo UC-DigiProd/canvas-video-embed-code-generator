@@ -312,15 +312,54 @@
              return;
         }
 
-        navigator.clipboard.writeText(code).then(() => {
-            copyBtn.textContent = 'Copied Code Successfully!';
-            setTimeout(() => {
-                copyBtn.textContent = 'Copy code to clipboard';
-            }, 2000);
-        }).catch(err => {
-            console.error('Failed to copy: ', err);
-            alert('Failed to automatically copy the code. Please manually select and copy the text block.');
-        });
+        // 1. Try the modern Clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(() => {
+                showSuccessMessage(copyBtn);
+            }).catch(err => {
+                // If SharePoint blocks the API, trigger the fallback
+                fallbackCopy(code, copyBtn);
+            });
+        } else {
+            // If the API isn't available at all, trigger the fallback
+            fallbackCopy(code, copyBtn);
+        }
+    }
+
+    // 2. The Fallback Function for SharePoint Iframes
+    function fallbackCopy(text, btnElement) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        
+        // Prevent scrolling to the bottom of the page when the element is appended
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showSuccessMessage(btnElement);
+            } else {
+                alert('SharePoint blocked the automatic copy. Please manually highlight and copy the code text.');
+            }
+        } catch (err) {
+            alert('SharePoint blocked the automatic copy. Please manually highlight and copy the code text.');
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+    // 3. Success UI Update
+    function showSuccessMessage(btnElement) {
+        btnElement.textContent = 'Copied Code Successfully!';
+        setTimeout(() => {
+            btnElement.textContent = 'Copy code to clipboard';
+        }, 2000);
     }
 
     function resetGenerator() {
